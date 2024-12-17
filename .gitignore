@@ -1,0 +1,8 @@
+# Ignorar o arquivo de configuração com a chave API
+config.py
+
+# Outros arquivos temporários ou específicos do editor
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
