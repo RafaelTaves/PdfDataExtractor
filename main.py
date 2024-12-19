@@ -1,35 +1,67 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from PyPDF2 import PdfReader
+from pdf2image import convert_from_path, convert_from_bytes
+from pytesseract import image_to_string, pytesseract
 import google.generativeai as genai
 import json
 from config import API_KEY
 import re
 import os
+from io import BytesIO
+from PIL import Image
 
+# Configure o caminho do executável do Tesseract (alterar conforme seu sistema)
+pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 
 # Key do Google Gemini API
 genai.configure(api_key=f"{API_KEY}")  
 
 app = FastAPI(title="PDF Data Extraction API", version="1.0", description="Extrai dados de PDFs usando FastAPI e Google Gemini 1.5 Flash.")
 
+def extract_text_from_image(image):
+    try:
+        text = image_to_string(image, lang="por")
+        return text
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao processar OCR na imagem: {str(e)}")
+    
 def extract_text_from_pdf(file):
     try:
+        # Tenta extrair texto de PDFs desbloqueados
         reader = PdfReader(file)
         text = ""
         for page in reader.pages:
             text += page.extract_text()
-        return text
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao ler o PDF: {str(e)}")
 
+        if text.strip():
+            return text
+        else:
+            # Caso o PDF esteja bloqueado, converte as páginas em imagens e aplica OCR
+            file.seek(0)  # Reinicia o ponteiro do arquivo
+            pages = convert_from_path(file, dpi=300)
+            ocr_text = ""
+            for page in pages:
+                ocr_text += image_to_string(page, lang="por") + "\n"
+            return ocr_text
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao processar o arquivo: {str(e)}")
+    
 def extract_data_with_gemini(text):
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
         prompt = f"""
-        A partir do texto a seguir, extraia as seguintes informações:
-        - Nome completo
-        - Endereço
-        - Data de nascimento (formato DD/MM/AAAA)
+        A partir do texto de escritura a seguir, extraia as seguintes informações:
+        - Nome completo do Outorgante 
+        - Nacionalidade do Outorgante
+        - Estado civil do Outorgante
+        - Documento de indetificação do Outorgante
+        - Endereço do Outorgante
+        - Nome completo do Outorgado 
+        - Nacionalidade do Outorgado
+        - Estado civil do Outorgado
+        - Documento de indetificação do Outorgado
+        - Endereço do Outorgado
+        
 
         Se alguma informação não estiver presente, retorne 'N/A'.
 
@@ -38,9 +70,16 @@ def extract_data_with_gemini(text):
 
         Retorne a resposta no formato JSON, por exemplo:
         {{
-            "nome": "João da Silva",
-            "endereco": "Rua Exemplo, 123, Bairro Exemplo, Cidade, Estado",
-            "data_nascimento": "01/01/1990"
+            "nome_Outorgante": "João da Silva",
+            "nacionalidade_Outorgante": "brasileiro",
+            "estadoCivil_Outorgante": "solteiro",
+            "documentoIdentificador_Outorgante": "258788991",
+            "endereco_Outorgante": "Rua Exemplo, 123, Bairro Exemplo, Cidade, Estado",
+            "nome_Outorgado": "Isabela Ferreira",
+            "nacionalidade_Outorgado": "brasileiro",
+            "estadoCivil_Outorgado": "solteira",
+            "documentoIdentificador_Outorgado": "20765057760",
+            "endereco_Outorgado": "Rua Exemplo, 123, Bairro Exemplo, Cidade, Estado",
         }}
         """
         response = model.generate_content(prompt)
@@ -62,12 +101,19 @@ def extract_data_with_gemini(text):
 
 @app.post("/extract", summary="Extrai dados do PDF", description="Recebe um PDF e retorna os dados extraídos (nome, endereço, data de nascimento) em JSON.")
 async def extract_data(file: UploadFile = File(...)):
-    if not file.filename.endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF.")
-
     try:
-        text = extract_text_from_pdf(file.file)
+        # Verifica o tipo do arquivo enviado
+        if file.content_type in ["application/pdf"]:
+            # Processa PDFs
+            text = extract_text_from_pdf(file.file)
+        elif file.content_type in ["image/jpeg", "image/png"]:
+            # Processa imagens
+            image = Image.open(file.file)
+            text = extract_text_from_image(image)
+        else:
+            raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF, JPG ou PNG.")
 
+        # Extrai dados com o modelo do Gemini
         extracted_data = extract_data_with_gemini(text)
 
         return {"dados_extraidos": extracted_data}
