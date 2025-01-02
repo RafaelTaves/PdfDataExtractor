@@ -42,7 +42,13 @@ def extract_text_from_pdf(file):
                 temp_file.write(file.read())
 
             # Converte páginas em imagens e aplica OCR
-            pages = convert_from_path(temp_file_path, dpi=300, poppler_path=r"poppler-24.08.0\Library\bin")
+            pages = convert_from_path(temp_file_path, dpi=600, poppler_path=r"poppler-24.08.0\Library\bin")
+            
+            # for i, page in enumerate(pages):
+            #     image_path = f"page_{i + 1}.png"
+            #     page.save(image_path, 'PNG')
+            #     print(f"Imagem da página {i + 1} salva em {image_path}")
+                
             ocr_text = ""
             for page in pages:
                 ocr_text += image_to_string(page, lang="por") + "\n"
