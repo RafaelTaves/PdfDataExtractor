@@ -1,6 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from PyPDF2 import PdfReader
-from pdf2image import convert_from_path, convert_from_bytes
 from pytesseract import image_to_string, pytesseract
 import google.generativeai as genai
 import json
@@ -9,6 +8,7 @@ import re
 import os
 from io import BytesIO
 from PIL import Image
+import fitz 
 
 # Configure o caminho do executável do Tesseract (alterar conforme seu sistema)
 pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
@@ -41,19 +41,28 @@ def extract_text_from_pdf(file):
             with open(temp_file_path, "wb") as temp_file:
                 temp_file.write(file.read())
 
-            # Converte páginas em imagens e aplica OCR
-            pages = convert_from_path(temp_file_path, dpi=600, poppler_path=r"poppler-24.08.0\Library\bin")
-            
-            # for i, page in enumerate(pages):
-            #     image_path = f"page_{i + 1}.png"
-            #     page.save(image_path, 'PNG')
-            #     print(f"Imagem da página {i + 1} salva em {image_path}")
-                
+            # Usa fitz para abrir o PDF e converter as páginas em imagens
+            doc = fitz.open(temp_file_path)
             ocr_text = ""
-            for page in pages:
-                ocr_text += image_to_string(page, lang="por") + "\n"
+            
+            for page_num in range(doc.page_count):
+                page = doc.load_page(page_num)  # Carrega a página
+                pix = page.get_pixmap(dpi=300)  # Converte a página para imagem (pixmap)
+                
+                # Verifica se a imagem é RGB ou Grayscale e converte para PIL
+                mode = "RGB" if pix.n == 3 else "L"
+                img = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+            
+                # Salva a imagem para debug
+                debug_image_path = f"debug_page_{page_num + 1}.png"
+                img.save(debug_image_path, "PNG")
+                print(f"Imagem da página {page_num + 1} salva em: {debug_image_path}")
+            
+                # Realiza OCR na imagem
+                ocr_text += extract_text_from_image(img) + "\n"
 
             # Remove o arquivo temporário
+            doc.close()  # Fecha o documento para garantir que o arquivo não seja bloqueado
             os.remove(temp_file_path)
 
             return ocr_text

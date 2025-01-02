@@ -24,15 +24,9 @@ API_KEY = "SUA_KEY"
 
 Siga este tutorial no youtube até o minuto 1:50 https://www.youtube.com/watch?v=2kWvk4C1pMo&list=LL&index=1&t=138s&ab_channel=JayMartMedia.  
 Certifique-se de que o diretório onde você instalou o Tesseract é o mesmo referenciado no código (pytesseract.tesseract_cmd).  
-Após baixe este arquivo https://github.com/tesseract-ocr/tessdata/blob/main/por.traineddata e copie para dentro da pasta \Tesseract-OCR\tessdata.  
+Após baixe este arquivo https://github.com/tesseract-ocr/tessdata/blob/main/por.traineddata e copie para dentro da pasta \Tesseract-OCR\tessdata.   
 
-### 4. Instale o Poppler (Necessário para o pdf2image)
-
-Windows:  
-Siga este tutorial no youtube até o minuto 1:07 https://www.youtube.com/watch?v=PyF1Vh9040Y&t=260s&ab_channel=FreePythonCode  
-Certifique-se de que o diretório onde você instalou o poppler é o mesmo referenciado no código (poppler_path=r"poppler-24.08.0\Library\bin").  
-
-### 5. Rode a API.
+### 4. Rode a API.
   
 Basta utilizar o comando "uvicorn main:app --reload"  
 
