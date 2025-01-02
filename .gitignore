@@ -1,5 +1,7 @@
 # Ignorar o arquivo de configuração com a chave API
 config.py
+poppler-24.08.0
+temp.pdf
 
 # Outros arquivos temporários ou específicos do editor
 *.pyc

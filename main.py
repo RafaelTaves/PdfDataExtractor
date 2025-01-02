@@ -16,7 +16,7 @@ pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 # Key do Google Gemini API
 genai.configure(api_key=f"{API_KEY}")  
 
-app = FastAPI(title="PDF Data Extraction API", version="1.0", description="Extrai dados de PDFs usando FastAPI e Google Gemini 1.5 Flash.")
+app = FastAPI(title="PDF Data Extraction API", version="1.0", description="Extrai dados de PDFs e imagens usando FastAPI e Google Gemini 1.5 Flash.")
 
 def extract_text_from_image(image):
     try:
@@ -36,12 +36,20 @@ def extract_text_from_pdf(file):
         if text.strip():
             return text
         else:
-            # Caso o PDF esteja bloqueado, converte as páginas em imagens e aplica OCR
-            file.seek(0)  # Reinicia o ponteiro do arquivo
-            pages = convert_from_path(file, dpi=300)
+            # Salva o arquivo temporariamente no disco
+            temp_file_path = "temp.pdf"
+            with open(temp_file_path, "wb") as temp_file:
+                temp_file.write(file.read())
+
+            # Converte páginas em imagens e aplica OCR
+            pages = convert_from_path(temp_file_path, dpi=300, poppler_path=r"poppler-24.08.0\Library\bin")
             ocr_text = ""
             for page in pages:
                 ocr_text += image_to_string(page, lang="por") + "\n"
+
+            # Remove o arquivo temporário
+            os.remove(temp_file_path)
+
             return ocr_text
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao processar o arquivo: {str(e)}")
